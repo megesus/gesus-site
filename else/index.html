@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Else — v0.2</title>
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#090909;
+  --fg:#ecebe6;
+  --muted:#8c8b86;
+  --faint:#4c4b48;
+  --line:#242421;
+  --accent:#d7d3c8;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--fg)}
+body{
+  font:16px/1.7 Georgia, "Times New Roman", serif;
+  display:flex;
+  justify-content:center;
+}
+main{
+  width:min(720px,100%);
+  padding:12vh 24px 18vh;
+}
+.meta{
+  font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color:var(--muted);
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  margin-bottom:42px;
+}
+#scene{
+  min-height:280px;
+}
+p{
+  margin:0 0 20px;
+  opacity:0;
+  transform:translateY(4px);
+  animation:appear .7s ease forwards;
+}
+@keyframes appear{
+  to{opacity:1;transform:none}
+}
+.choices{
+  display:grid;
+  gap:10px;
+  margin:34px 0 12px;
+}
+button{
+  appearance:none;
+  width:100%;
+  text-align:left;
+  border:1px solid var(--line);
+  background:transparent;
+  color:var(--fg);
+  padding:12px 14px;
+  font:inherit;
+  cursor:pointer;
+}
+button:hover,button:focus{
+  border-color:#5b5a55;
+  outline:none;
+}
+button:disabled{
+  opacity:.35;
+  cursor:default;
+}
+.small{color:var(--muted);font-size:14px}
+.faint{color:var(--faint)}
+.rule{
+  border-top:1px solid var(--line);
+  margin:44px 0 28px;
+}
+.branch{
+  color:var(--muted);
+  margin:14px 0;
+}
+.branch strong{
+  color:var(--fg);
+  font-weight:normal;
+}
+.hidden{display:none}
+footer{
+  margin-top:72px;
+  color:var(--faint);
+  font:12px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+</style>
+</head>
+<body>
+<main>
+  <div class="meta">Tuesday, 17:42 · Rain · Outside a pharmacy</div>
+  <section id="scene"></section>
+  <footer>ELSE / v0.3 — no score, no rewind</footer>
+</main>
+<script>
+(() => {
+  const scene = document.getElementById("scene");
+  const state = {
+    shelterSide: null,
+    lookedAtPoster: false,
+    keptReceipt: false,
+    waited: false,
+    strangerSeen: false,
+    nameHeard: false
+  };
+
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  function add(text, cls="") {
+    const p = document.createElement("p");
+    if (cls) p.className = cls;
+    p.innerHTML = text;
+    scene.appendChild(p);
+    p.scrollIntoView({behavior:"smooth",block:"end"});
+    return p;
+  }
+
+  function choices(options) {
+    return new Promise(resolve => {
+      const wrap = document.createElement("div");
+      wrap.className = "choices";
+      for (const [label, value] of options) {
+        const b = document.createElement("button");
+        b.textContent = label;
+        b.onclick = () => {
+          [...wrap.querySelectorAll("button")].forEach(x => x.disabled = true);
+          b.disabled = false;
+          setTimeout(() => {
+            wrap.remove();
+            resolve(value);
+          }, 220);
+        };
+        wrap.appendChild(b);
+      }
+      scene.appendChild(wrap);
+    });
+  }
+
+  async function opening() {
+    add("The pharmacy door opens behind you. Warm air touches the back of your neck and disappears.");
+    await sleep(900);
+    add("You are waiting for someone who said <em>five minutes</em> eleven minutes ago.");
+    await sleep(900);
+    add("Rain gathers along the awning. There is room on both sides.");
+    const side = await choices([
+      ["Stand near the drainpipe.", "drain"],
+      ["Move closer to the newspaper box.", "paper"]
+    ]);
+    state.shelterSide = side;
+
+    add(side === "drain"
+      ? "You move half a meter left. Water ticks inside the drainpipe."
+      : "You move half a meter right. Yesterday's free newspaper is dissolving at the edges."
+    );
+
+    await sleep(700);
+    add("Across the street, a bus passes without stopping.");
+    await sleep(700);
+    add("A paper poster on the pharmacy window has started peeling from one corner.");
+
+    const poster = await choices([
+      ["Read it.", true],
+      ["Ignore it.", false]
+    ]);
+    state.lookedAtPoster = poster;
+
+    if (poster) {
+      add("It is for a missing grey cat. <em>Milo</em>. The phone number is blurred by condensation.");
+    } else {
+      add("You watch your own reflection break around the wet glass.");
+    }
+
+    await receiptBeat();
+  }
+
+  async function receiptBeat() {
+    await sleep(850);
+    add("You notice the receipt still folded in your palm.");
+
+    const keep = await choices([
+      ["Put it in your pocket.", true],
+      ["Drop it into the bin.", false]
+    ]);
+    state.keptReceipt = keep;
+
+    add(keep
+      ? "You put it away without reading it."
+      : "It lands on top of a blue disposable mask."
+    );
+
+    await sleep(850);
+
+    // An event happens without asking.
+    if (state.shelterSide === "paper") {
+      state.strangerSeen = true;
+      add("Someone runs under the awning beside you. A woman, maybe thirty, soaked through one sleeve.");
+      await sleep(700);
+      add("She looks toward the road, then at you, then says, \"Sorry,\" although she hasn't touched you.");
+    } else {
+      add("A car cuts through the gutter. Cold water reaches your shoes.");
+      await sleep(700);
+      add("Under the newspaper box, someone else's umbrella rolls once in the wind and stops.");
+    }
+
+    await waitingBeat();
+  }
+
+  async function waitingBeat() {
+    await sleep(800);
+    add("17:49.");
+
+    const wait = await choices([
+      ["Wait three more minutes.", true],
+      ["Leave now.", false]
+    ]);
+    state.waited = wait;
+
+    if (!wait) {
+      add("You step into the rain before the decision has time to feel important.");
+      await sleep(700);
+      await ending();
+      return;
+    }
+
+    add("You stay.");
+    await sleep(1100);
+
+    if (state.strangerSeen) {
+      if (state.lookedAtPoster) {
+        state.nameHeard = true;
+        add("The woman notices the cat poster.");
+        await sleep(650);
+        add("\"Milo,\" she says softly.");
+        await sleep(650);
+        add("You look at her.");
+        add("\"He used to sleep on my balcony.\"");
+      } else {
+        add("The woman checks the time on the pharmacy display.");
+        await sleep(650);
+        add("\"They always say five minutes,\" she says.");
+        await sleep(650);
+        add("You almost ask who <em>they</em> are.");
+      }
+    } else {
+      add("The pharmacy door opens again.");
+      await sleep(650);
+      add("A man steps out holding a small cardboard box against his chest. He pauses where you would have been standing.");
+      await sleep(650);
+      add("For a second he seems about to speak to you. He doesn't.");
+    }
+
+    await sleep(900);
+    await ending();
+  }
+
+  async function ending() {
+    add("<span class='small'>17:52.</span>");
+    await sleep(900);
+
+    if (state.waited) {
+      add("The person you were waiting for finally texts: <em>I'm so sorry. Wrong pharmacy.</em>");
+    } else {
+      add("Your phone vibrates after you have already reached the corner: <em>I'm so sorry. Wrong pharmacy.</em>");
+    }
+
+    await sleep(1100);
+    add("Nothing announces itself as the important part.");
+
+    if (state.keptReceipt) {
+      await sleep(900);
+      add("That night, the receipt falls from your pocket onto the kitchen floor.");
+      await sleep(700);
+      add("On the back is a handwritten number you don't remember anyone writing.");
+    } else {
+      await sleep(900);
+      add("That night, while emptying your pockets, you remember the receipt only because it is not there.");
+    }
+
+    await sleep(1200);
+    reveal();
+  }
+
+  function saveTrace() {
+    try {
+      const trace = {
+        at: new Date().toISOString(),
+        shelterSide: state.shelterSide,
+        lookedAtPoster: state.lookedAtPoster,
+        keptReceipt: state.keptReceipt,
+        waited: state.waited,
+        nameHeard: state.nameHeard
+      };
+      localStorage.setItem("else:last-trace", JSON.stringify(trace));
+    } catch (_) {}
+  }
+
+  function reveal() {
+    saveTrace();
+    const hr = document.createElement("div");
+    hr.className = "rule";
+    scene.appendChild(hr);
+
+    add("<strong>This happened.</strong>");
+    const lived = [];
+    if (state.shelterSide === "paper") lived.push("You stood by the newspaper box.");
+    else lived.push("You stood by the drainpipe.");
+    lived.push(state.waited ? "You stayed until 17:52." : "You left before 17:52.");
+    lived.push(state.keptReceipt ? "The receipt came home with you." : "The receipt did not.");
+    if (state.nameHeard) lived.push("You heard the name Milo spoken aloud.");
+
+    for (const item of lived) add(item, "branch");
+
+    const hr2 = document.createElement("div");
+    hr2.className = "rule";
+    scene.appendChild(hr2);
+
+    add("<strong>This could have.</strong>");
+    const alternatives = [];
+
+    if (state.shelterSide === "drain") {
+      alternatives.push("Half a meter to your right, a soaked woman would have arrived under the awning.");
+      alternatives.push("If you had read the poster before she arrived, she would have told you about Milo.");
+    } else {
+      alternatives.push("Half a meter to your left, a passing car would have soaked your shoes.");
+      alternatives.push("A man leaving the pharmacy would have paused where you were no longer standing.");
+    }
+
+    if (!state.waited) {
+      alternatives.push("Three more minutes would have been enough for another conversation to begin.");
+    } else {
+      alternatives.push("Leaving when you first wanted to would have erased the rest without feeling like a decision.");
+    }
+
+    if (state.keptReceipt) {
+      alternatives.push("In the bin, the handwritten number would have remained unread by you.");
+    } else {
+      alternatives.push("In your pocket, the receipt would have carried a number home.");
+    }
+
+    alternatives.push("Most nearby lives would still have looked ordinary from inside them.");
+
+    for (const item of alternatives) add(item, "branch faint");
+
+    add("<span class='small'>No branch is marked better.</span>");
+  }
+
+  opening();
+})();
+</script>
+</body>
+</html>
