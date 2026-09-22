@@ -94,11 +94,19 @@ footer{
 <main>
   <div class="meta">Tuesday, 17:42 · Rain · Outside a pharmacy</div>
   <section id="scene"></section>
-  <footer>ELSE / v0.3 — no score, no rewind</footer>
+  <footer>ELSE / v0.4 — no score, no rewind</footer>
 </main>
 <script>
 (() => {
   const scene = document.getElementById("scene");
+  const previousTrace = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("else:last-trace") || "null");
+    } catch (_) {
+      return null;
+    }
+  })();
+
   const state = {
     shelterSide: null,
     lookedAtPoster: false,
@@ -142,6 +150,16 @@ footer{
 
   async function opening() {
     add("The pharmacy door opens behind you. Warm air touches the back of your neck and disappears.");
+    if (previousTrace) {
+      await sleep(700);
+      const echoes = [];
+      if (previousTrace.nameHeard) echoes.push("For no obvious reason, the name <em>Milo</em> is already somewhere in your head.");
+      if (previousTrace.shelterSide === "drain") echoes.push("The drainpipe feels familiar before you look at it.");
+      if (previousTrace.shelterSide === "paper") echoes.push("You notice the newspaper box too quickly, as if you had already decided where to stand.");
+      if (previousTrace.keptReceipt) echoes.push("Your hand closes once, empty, around the memory of folded paper.");
+      if (previousTrace.waited === false) echoes.push("You have the strange sensation of having left this place before.");
+      if (echoes.length) add(echoes[Math.floor(Math.random() * echoes.length)], "small");
+    }
     await sleep(900);
     add("You are waiting for someone who said <em>five minutes</em> eleven minutes ago.");
     await sleep(900);
@@ -346,6 +364,9 @@ footer{
     for (const item of alternatives) add(item, "branch faint");
 
     add("<span class='small'>No branch is marked better.</span>");
+    if (previousTrace) {
+      add("<span class='small faint'>Somewhere nearby, another version of this evening already happened.</span>");
+    }
   }
 
   opening();
